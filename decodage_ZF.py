@@ -2,7 +2,7 @@ import numpy as np
 from itertools import product
 import matplotlib.pyplot as plt
 
-from decodage_ML_bib import *
+from decodage_bib import *
 
 A = qpsk_alphabet()
 H = generate_channel()
