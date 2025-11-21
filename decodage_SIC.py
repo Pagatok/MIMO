@@ -33,27 +33,28 @@ def decodage_SIC(Z, R, A):
                 best_norme = norme
                 xnl_hat = z
         
-        return z
+        return xnl_hat
 
 
     def decode_col(l):
     
         Xl_hat = np.zeros((N, 1), dtype=complex)
-        Xl_hat[-1] = decode_first_item(l)
         
         for n in range(N-1, -1, -1):
             
             best_norme = np.inf
             xnl_hat = None
             
-            for z in A:
+            Interference_I = 0
+            for k in range(n + 1, N): 
+                Interference_I += R[n, k] * Xl_hat[k]
             
-                somme = 0
-                for k in range(n, N):
-                    temp = R[n, k]*Xl_hat[k] - R[n, n]*z
-                    somme += temp
-                    
-                dist = Z[n, l] - somme
+            
+            for z in A:
+                
+                terme_Rnn_z = R[n, n] * z
+                
+                dist = Z[n, l] - (Interference_I + terme_Rnn_z) 
                 norme = np.linalg.norm(dist)**2
                     
                 if norme < best_norme:
@@ -63,14 +64,17 @@ def decodage_SIC(Z, R, A):
             Xl_hat[n] = xnl_hat
             
         return Xl_hat
+
+    X = np.zeros((2, 2), dtype=complex)
     
-    X = np.zeros(())
+    for l in range(2):
+        X[:, l] = decode_col(l).flatten()
     
-    return decode_col(0)
+    return X
     
 
 
-def simulate_pe_sic(snr_db, n_trials=1000):
+def simulate_pe_sic(snr_db, n_trials=5000):
     n_symbol_errors = 0
     n_total_symbols = n_trials * 2 * 2 
 
@@ -78,7 +82,7 @@ def simulate_pe_sic(snr_db, n_trials=1000):
         H = generate_channel(N=2, M=2)
         Qstar, R = get_QconjR(H)
         X = generate_codeword(A)
-        V = generate_noise()
+        V = generate_noise(snr_db=snr_db)
         Y = H @ X + V
         Z = Qstar @ Y
 
@@ -90,12 +94,30 @@ def simulate_pe_sic(snr_db, n_trials=1000):
     return pe
             
     
+if __name__ == "__main__":
+    
+    # H = generate_channel(N=2, M=2)
+    # Qstar, R = get_QconjR(H)
+    # X = generate_codeword(A)
+    # V = generate_noise()
+    # Y = H @ X 
+    # Z = Qstar @ Y
+    # X_hat = decodage_SIC(Z, R, A)
+    
+    # print(X)
+    # print(X_hat)
 
+    snr_dbs = np.linspace(0, 21, 20)
+    pes = []
 
+    for snr in tqdm(snr_dbs):
+        pe = simulate_pe_sic(snr_db=snr, n_trials=5000)
+        pes.append(pe)
 
-
-
-
-X_hat_SIC = decodage_SIC(Z, R, A)
-
-print(f"X = {X}\n\nX_hat_SIC = {X_hat_SIC}")
+    plt.figure()
+    plt.semilogy(snr_dbs, pes)
+    plt.grid(True, which='both', linestyle='--', alpha=0.5)
+    plt.xlabel("SNR (dB)")
+    plt.ylabel("Probabilité d'erreur symbole $P_e$")
+    plt.title("Performance du décodeur SIC (QPSK)")
+    plt.show()
