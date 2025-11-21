@@ -31,28 +31,35 @@ def generate_noise(M=2, L=2, snr_db=10):
 
 A = qpsk_alphabet()
 H = generate_channel()
+H_pinv = np.linalg.pinv(H)
 X = generate_codeword(A)
 V = generate_noise()
 Y = H @ X + V
+Z = H_pinv @ Y
 
-def decodage_ml(H, Y, A):
-    best_norme = np.inf
-    X_hat = None
+def decodage_zf(H, Y, A):
+    H_pinv = np.linalg.pinv(H)
+    Z = H_pinv @ Y
+    X_hat = np.zeros_like(Z, dtype=complex)
 
-    for a, b, c, d in product(range(len(A)), repeat=4):
-        X_ml = np.array([[A[a], A[b]], 
-                         [A[c], A[d]]], dtype=complex)
+    for i in range(Z.shape[0]):
+        for j in range(Z.shape[1]):
+            z_ij = Z[i, j]
 
-        dist = Y - H @ X_ml
-        norme = np.linalg.norm(dist, 'fro')**2
+            best_dist = np.inf
+            best_symbol = None
 
-        if norme < best_norme:
-            best_norme = norme 
-            X_hat = X_ml
+            for a in A:
+                d = np.abs(z_ij - a)**2
+                if d < best_dist:
+                    best_dist = d
+                    best_symbol = a
+
+            X_hat[i, j] = best_symbol
 
     return X_hat
 
-def simulate_pe_ml(snr_db, n_trials=1000):
+def simulate_pe_zf(snr_db, n_trials=1000):
     n_symbol_errors = 0
     n_total_symbols = n_trials * 2 * 2 
 
@@ -62,22 +69,22 @@ def simulate_pe_ml(snr_db, n_trials=1000):
         V = generate_noise(M=2, L=2, snr_db=snr_db)
         Y = H @ X + V
 
-        X_hat = decodage_ml(H, Y, A)
+        X_hat = decodage_zf(H, Y, A)
 
         n_symbol_errors += np.sum(X != X_hat)
 
     pe = n_symbol_errors / n_total_symbols
     return pe
 
-pe_10 = simulate_pe_ml(snr_db=10, n_trials=1000)
+pe_10 = simulate_pe_zf(snr_db=10, n_trials=1000)
 print("P_e (ML) à 10 dB ≈", pe_10)
 
 snr_dbs = np.arange(0, 21, 2)
 pes = []
 
 for snr in snr_dbs:
-    pe = simulate_pe_ml(snr_db=snr, n_trials=1000)
-    print(f"SNR = {snr} dB, Pe_ML ≈ {pe}")
+    pe = simulate_pe_zf(snr_db=snr, n_trials=1000)
+    print(f"SNR = {snr} dB, Pe_ZF ≈ {pe}")
     pes.append(pe)
 
 plt.figure()
@@ -85,5 +92,5 @@ plt.semilogy(snr_dbs, pes)
 plt.grid(True, which='both', linestyle='--', alpha=0.5)
 plt.xlabel("SNR (dB)")
 plt.ylabel("Probabilité d'erreur symbole $P_e$")
-plt.title("Performance du décodeur ML pour V-BLAST 2x2 (QPSK)")
+plt.title("Performance du décodeur ZF pour V-BLAST 2x2 (QPSK)")
 plt.show()
