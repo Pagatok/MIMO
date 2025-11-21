@@ -29,37 +29,3 @@ def generate_noise(M=2, L=2, snr_db=10):
     V = sigma / np.sqrt(2) * (np.random.randn(M, L) + 1j * np.random.randn(M, L))
     return V
 
-
-def decodage_ml(H, Y, A):
-    best_norme = np.inf
-    X_hat = None
-
-    for a, b, c, d in product(range(len(A)), repeat=4):
-        X_ml = np.array([[A[a], A[b]], 
-                         [A[c], A[d]]], dtype=complex)
-
-        dist = Y - H @ X_ml
-        norme = np.linalg.norm(dist, 'fro')**2
-
-        if norme < best_norme:
-            best_norme = norme 
-            X_hat = X_ml
-
-    return X_hat
-
-def simulate_pe_ml(snr_db, n_trials=1000):
-    n_symbol_errors = 0
-    n_total_symbols = n_trials * 2 * 2 
-
-    for _ in range(n_trials):
-        H = generate_channel(N=2, M=2)
-        X = generate_codeword(A)
-        V = generate_noise(M=2, L=2, snr_db=snr_db)
-        Y = H @ X + V
-
-        X_hat = decodage_ml(H, Y, A)
-
-        n_symbol_errors += np.sum(X != X_hat)
-
-    pe = n_symbol_errors / n_total_symbols
-    return pe

@@ -6,15 +6,18 @@ from decodage_ML_bib import *
 
 A = qpsk_alphabet()
 H = generate_channel()
-H_pinv = np.linalg.pinv(H)
 X = generate_codeword(A)
 V = generate_noise()
 Y = H @ X + V
-Z = H_pinv @ Y
 
-def decodage_zf(H, Y, A):
-    H_pinv = np.linalg.pinv(H)
-    Z = H_pinv @ Y
+def decodage_mmse(H, Y, A, snr_db):
+    N = H.shape[1]
+    sigma2 = 10 ** (-snr_db / 10)
+
+    H_herm = H.conj().T
+    F_mmse = np.linalg.inv(H_herm @ H + sigma2 * np.eye(N)) @ H_herm
+
+    Z = F_mmse @ Y
     X_hat = np.zeros_like(Z, dtype=complex)
 
     for i in range(Z.shape[0]):
@@ -34,7 +37,7 @@ def decodage_zf(H, Y, A):
 
     return X_hat
 
-def simulate_pe_zf(snr_db, n_trials=1000):
+def simulate_pe_mmse(snr_db, n_trials=1000):
     n_symbol_errors = 0
     n_total_symbols = n_trials * 2 * 2 
 
@@ -44,22 +47,22 @@ def simulate_pe_zf(snr_db, n_trials=1000):
         V = generate_noise(M=2, L=2, snr_db=snr_db)
         Y = H @ X + V
 
-        X_hat = decodage_zf(H, Y, A)
+        X_hat = decodage_mmse(H, Y, A, snr_db)
 
         n_symbol_errors += np.sum(X != X_hat)
 
     pe = n_symbol_errors / n_total_symbols
     return pe
 
-pe_10 = simulate_pe_zf(snr_db=10, n_trials=1000)
+pe_10 = simulate_pe_mmse(snr_db=10, n_trials=1000)
 print("P_e (ML) à 10 dB ≈", pe_10)
 
 snr_dbs = np.arange(0, 21, 2)
 pes = []
 
 for snr in snr_dbs:
-    pe = simulate_pe_zf(snr_db=snr, n_trials=1000)
-    print(f"SNR = {snr} dB, Pe_ZF ≈ {pe}")
+    pe = simulate_pe_mmse(snr_db=snr, n_trials=1000)
+    print(f"SNR = {snr} dB, Pe_MMSE ≈ {pe}")
     pes.append(pe)
 
 plt.figure()
@@ -67,5 +70,5 @@ plt.semilogy(snr_dbs, pes)
 plt.grid(True, which='both', linestyle='--', alpha=0.5)
 plt.xlabel("SNR (dB)")
 plt.ylabel("Probabilité d'erreur symbole $P_e$")
-plt.title("Performance du décodeur ZF pour V-BLAST 2x2 (QPSK)")
+plt.title("Performance du décodeur MMSE pour V-BLAST 2x2 (QPSK)")
 plt.show()
