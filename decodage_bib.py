@@ -17,6 +17,7 @@ def generate_channel(N=2, M=2):
     return H
 
 def generate_codeword(A):
+    
     idx = np.random.randint(0, len(A), size=4)
     s = A[idx]
     X = np.array([[s[0], s[2]],
@@ -29,3 +30,10 @@ def generate_noise(M=2, L=2, snr_db=10):
     V = sigma / np.sqrt(2) * (np.random.randn(M, L) + 1j * np.random.randn(M, L))
     return V
 
+
+
+def new_gen_codeword(A, L=2, M=2):
+
+    codeword_matrix = np.random.choice(A, size=(L, M), replace=True)
+    
+    return codeword_matrix
