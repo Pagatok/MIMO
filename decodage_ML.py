@@ -69,21 +69,23 @@ def simulate_pe_ml(snr_db, n_trials=1000):
     pe = n_symbol_errors / n_total_symbols
     return pe
 
-pe_10 = simulate_pe_ml(snr_db=10, n_trials=1000)
-print("P_e (ML) à 10 dB ≈", pe_10)
+if __name__ == "__main__":
 
-snr_dbs = np.arange(0, 21, 2)
-pes = []
+    pe_10 = simulate_pe_ml(snr_db=10, n_trials=1000)
+    print("P_e (ML) à 10 dB ≈", pe_10)
 
-for snr in snr_dbs:
-    pe = simulate_pe_ml(snr_db=snr, n_trials=1000)
-    print(f"SNR = {snr} dB, Pe ≈ {pe}")
-    pes.append(pe)
+    snr_dbs = np.arange(0, 21, 2)
+    pes = []
 
-plt.figure()
-plt.semilogy(snr_dbs, pes)
-plt.grid(True, which='both', linestyle='--', alpha=0.5)
-plt.xlabel("SNR (dB)")
-plt.ylabel("Probabilité d'erreur symbole $P_e$")
-plt.title("Performance du décodeur ML pour V-BLAST 2x2 (QPSK)")
-plt.show()
+    for snr in snr_dbs:
+        pe = simulate_pe_ml(snr_db=snr, n_trials=1000)
+        print(f"SNR = {snr} dB, Pe ≈ {pe}")
+        pes.append(pe)
+
+    plt.figure()
+    plt.semilogy(snr_dbs, pes)
+    plt.grid(True, which='both', linestyle='--', alpha=0.5)
+    plt.xlabel("SNR (dB)")
+    plt.ylabel("Probabilité d'erreur symbole $P_e$")
+    plt.title("Performance du décodeur ML pour V-BLAST 2x2 (QPSK)")
+    plt.show()
