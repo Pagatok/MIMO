@@ -27,14 +27,14 @@ def decodage_ml(H, Y, A):
 
     return X_hat
 
-def simulate_pe_ml(snr_db, n_trials=1000):
+def simulate_pe_ml(snr_db, n_trials=1000, N=2, M=2, L=2):
     n_symbol_errors = 0
     n_total_symbols = n_trials * 2 * 2 
 
     for _ in range(n_trials):
-        H = generate_channel(N=2, M=2)
+        H = generate_channel(N=N, M=M)
         X = generate_codeword(A)
-        V = generate_noise(M=2, L=2, snr_db=snr_db)
+        V = generate_noise(M=M, L=L, snr_db=snr_db)
         Y = H @ X + V
 
         X_hat = decodage_ml(H, Y, A)
@@ -52,10 +52,10 @@ if __name__ == "__main__":
     snr_dbs = np.arange(0, 21, 2)
     pes = []
 
-for snr in snr_dbs:
-    pe = simulate_pe_ml(snr_db=snr, n_trials=1000)
-    print(f"SNR = {snr} dB, Pe_ML ≈ {pe}")
-    pes.append(pe)
+    for snr in snr_dbs:
+        pe = simulate_pe_ml(snr_db=snr, n_trials=1000)
+        print(f"SNR = {snr} dB, Pe_ML ≈ {pe}")
+        pes.append(pe)
 
     plt.figure()
     plt.semilogy(snr_dbs, pes)

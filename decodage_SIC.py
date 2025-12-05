@@ -3,6 +3,8 @@ from itertools import product
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from decodage_bib import *
+from decodage_MMSE import simulate_pe_mmse
+from decodage_ZF import simulate_pe_zf
 
 
 
@@ -69,7 +71,57 @@ def decodage_SIC(Z, R, A, N, M):
         X[:, l] = decode_col(l).flatten()
     
     return X
+
+
+
+def new_SIC(Z, R, A, N, M):
     
+    X = np.zeros((N, M), dtype=complex)
+    
+    def decode_first_item(l):
+        best_norme = np.inf
+        xnl_hat = None
+        
+        for z in A:
+            dist = Z[-1, l] - R[-1, -1]*z
+            norme = np.linalg.norm(dist)**2
+            
+            if norme < best_norme:
+                best_norme = norme
+                xnl_hat = z
+        
+        return xnl_hat
+    
+    def decode_item(n, l, X):
+        best_norme = np.inf
+        xnl_hat = None
+        
+        for z in A:
+            somme = 0
+            for k in range(n+1, N):
+                somme += R[n, k] * X[k, l] 
+            dist = Z[n, l] - somme - R[n, n]*z
+            norme = np.linalg.norm(dist)**2
+            if norme < best_norme:
+                best_norme = norme
+                xnl_hat = z
+        
+        return xnl_hat
+        
+    
+    
+    for l in range(M):
+        X[-1, l] = decode_first_item(l)
+        for n in range(N-2, -1, -1):
+            X[n, l] = decode_item(n, l, X)
+
+        
+    return X
+            
+
+
+
+ 
 
 
 def simulate_pe_sic(snr_db, n_trials=5000, L=2, M=2):
@@ -84,7 +136,7 @@ def simulate_pe_sic(snr_db, n_trials=5000, L=2, M=2):
         Y = H @ X + V
         Z = Qstar @ Y
 
-        X_hat = decodage_SIC(Z, R, A, L, M)
+        X_hat = new_SIC(Z, R, A, L, M)
 
         n_symbol_errors += np.sum(X != X_hat)
 
@@ -93,7 +145,7 @@ def simulate_pe_sic(snr_db, n_trials=5000, L=2, M=2):
 
 
 def sim_classic():
-    snr_dbs = np.linspace(0, 21, 20)
+    snr_dbs = np.linspace(-5, 21, 20)
     pes = []
 
     for snr in tqdm(snr_dbs):
@@ -108,12 +160,38 @@ def sim_classic():
     plt.title("Performance du décodeur SIC (QPSK)")
     plt.legend()
     plt.show()
+    
+    
+def vsZF_MMSE(n_trials=10000):
+    snr_dbs = np.linspace(-5, 20, 20)
+    
+    pes1 = []
+    pes2 = []
+    pes3 = []
+    for snr in tqdm(snr_dbs):
+        pe = simulate_pe_zf(snr_db=snr, n_trials=n_trials)
+        pes1.append(pe)
+        pe = simulate_pe_mmse(snr_db=snr, n_trials=n_trials)
+        pes2.append(pe)
+        pe = simulate_pe_sic(snr_db=snr, n_trials=n_trials)
+        pes3.append(pe)
+        
+    plt.figure()
+    plt.semilogy(snr_dbs, pes1, label='ZF')
+    plt.semilogy(snr_dbs, pes2, label='MMSE')
+    plt.semilogy(snr_dbs, pes3, label='SIC')
+    plt.grid(True, which='both', linestyle='--', alpha=0.5)
+    plt.xlabel("SNR (dB)")
+    plt.ylabel("Probabilité d'erreur symbole $P_e$")
+    plt.title("Performances du code SIC")
+    plt.legend()
+    plt.show()
 
 
 
 # Etude de l'impact de L sur les performances de SIC
 def sim_L_impact():
-    snr_dbs = np.linspace(0, 21, 20)
+    snr_dbs = np.linspace(-5, 21, 20)
     plt.figure()
     
     for L in [2, 5, 10, 20]:
@@ -148,4 +226,4 @@ if __name__ == "__main__":
     # print(X)
     # print(X_hat)
 
-    sim_L_impact()
+    vsZF_MMSE()

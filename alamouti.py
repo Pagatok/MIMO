@@ -3,66 +3,75 @@ import numpy as np
 from decodage_ML import *
 
 it_per_SNR = 1000
-nbr_val_SNR = 10
+nbr_val_SNR = 20
 
 # utilisation de l'alphabet QPSK
 A = qpsk_alphabet()
 
 
 def encode_alamouti(x1, x2):
-        X = np.array([[x1, -(x2.conj())],
-                    [x2, x1.conj()]])
-        return X
+    X = np.array([[x1, -(x2.conj())],
+                [x2, x1.conj()]])
+    return X
 
 
 
 
-def decode_aloumati(Y, H):
-    
-    def max_likely(H, zk):
-        likely = 2000.0
-        s = A[0]
+def decode_alamouti(Y, H):
+    """
+    Décodage ML exact pour l’Alamouti 2xM.
+    Y : matrice Mx2
+    H : matrice Mx2
+    """
+
+    # Séparer Y et H
+    y1 = Y[:, 0].T
+    y2 = Y[:, 1].T
+    h1 = H[:, 0].T
+    h2 = H[:, 1].T
+
+    # Calculs intermédiaires du décodage ML
+    z1 = np.vdot(h1, y1) + np.vdot(y2, h2)  # h1* · y1 + y2* · h2
+    z2 = np.vdot(h2, y1) - np.vdot(y2, h1)  # h2* · y1 - y2* · h1   
+
+    # norme Frobenius de H
+    norm_H_sq = np.sum(np.abs(H)**2)
+
+
+    def ml_decision(z):
+        best = A[0]
+        best_val = 1e9
         for a in A:
-            temp = zk - (np.linalg.norm(H, 'fro')**2)*a
-            val = np.sum(np.abs(temp)**2)
-            if val < likely:
-                likely = val
-                s = a
-        return s
-    
-    y1 = Y[:, 0:1]  
-    y2 = Y[:, 1:2]  
-    h1 = H[:, 0:1]  
-    h2 = H[:, 1:2]  
-    
-    z1 = h1.conj() * y1 + y2.conj() * h2
-    z2 = h2.conj() * y1 - y2.conj() * h1
-    
-    x1 = max_likely(H, z1)
-    x2 = max_likely(H, z2)
-    
-    return [x1, x2]
-    
+            val = np.abs(z - norm_H_sq * a)**2
+            if val < best_val:
+                best_val = val
+                best = a
+        return best
 
+    x1_hat = ml_decision(z1)
+    x2_hat = ml_decision(z2)
 
+    return [x1_hat, x2_hat]
 
 
 def main():
     
+    snrs = np.linspace(-5, 21, nbr_val_SNR)
     plt.figure()
     
+    # Simulation des Alamoutis
     for M in [2, 4, 8]:
         print(f"M={M}")
         
         Pe = []
         
-        for snr in np.linspace(1, 21, nbr_val_SNR):
+        for snr in snrs:
             
             success = 0
             
-            for j in range(it_per_SNR):
+            for _ in range(it_per_SNR):
             
-                # Génétaion du signal reçu
+                # Génération du signal reçu
                 symboles = np.random.choice(A, size=2, replace=True)
                 X = encode_alamouti(symboles[0], symboles[1])
                 H = generate_channel(N=2, M=M)
@@ -70,18 +79,41 @@ def main():
                 Y = H @ X + V
                 
                 # Décodage par max de vraissemblance simplifie
-                symboles_recus = decode_aloumati(Y, H)
+                symboles_recus = decode_alamouti(Y, H)
                 
                 # Verifier si symboles recus == symboles
                 for i in range(len(symboles_recus)):
                     if symboles_recus[i] == symboles[i]:
                         success += 1
                         
-            Pe.append((2*j - success)/j)
+            Pe.append((2*it_per_SNR - success)/(2*it_per_SNR))
             
-        plt.plot(np.linspace(1, 21, nbr_val_SNR), Pe, label=f"M={M}")
+        plt.semilogy(snrs, Pe, label=f"Alamouti (M={M})")
+    
+    
+    # Simulation des V-Blasts
+    for M in [2, 4, 8]:
+        print(f"M={M}")
+        Pe = []
+        
+        for snr in snrs:
+            Pe.append(simulate_pe_ml(snr, M=M))
+            
+        plt.semilogy(snrs, Pe, label=f'V-BLAST (M={M})')
+    
+    
+    
+    plt.grid(True, which='both', linestyle='--', alpha=0.5)
+    plt.xlabel("SNR (dB)")
+    plt.ylabel("Probabilité d'erreur symbole $P_e$")
+    plt.title("Comparaison des performances des codes Alamouti et V-BLAST")
     plt.legend()
     plt.show()
+    
+
+
+
+
 
 
 if __name__ == "__main__":
