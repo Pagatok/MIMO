@@ -2,8 +2,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from decodage_ML import *
 
-it_per_SNR = 1000
-nbr_val_SNR = 20
+it_per_SNR = 10000
+nbr_val_SNR = 40
 
 # utilisation de l'alphabet QPSK
 A = qpsk_alphabet()
@@ -56,16 +56,16 @@ def decode_alamouti(Y, H):
 
 def main():
     
-    snrs = np.linspace(-5, 21, nbr_val_SNR)
+    snrs = np.linspace(-5, 22, nbr_val_SNR)
     plt.figure()
     
     # Simulation des Alamoutis
     for M in [2, 4, 8]:
         print(f"M={M}")
+        H = generate_channel(N=2, M=M)
+        Pe = np.zeros_like(snrs)
         
-        Pe = []
-        
-        for snr in snrs:
+        for snr in range(len(snrs)):
             
             success = 0
             
@@ -74,8 +74,7 @@ def main():
                 # Génération du signal reçu
                 symboles = np.random.choice(A, size=2, replace=True)
                 X = encode_alamouti(symboles[0], symboles[1])
-                H = generate_channel(N=2, M=M)
-                V = generate_noise(M=M, L=2, snr_db=snr)
+                V = generate_noise(M=M, L=2, snr_db=snrs[snr])
                 Y = H @ X + V
                 
                 # Décodage par max de vraissemblance simplifie
@@ -85,19 +84,27 @@ def main():
                 for i in range(len(symboles_recus)):
                     if symboles_recus[i] == symboles[i]:
                         success += 1
-                        
-            Pe.append((2*it_per_SNR - success)/(2*it_per_SNR))
+                   
+            pe = (2*it_per_SNR - success)/(2*it_per_SNR)
+            Pe[snr] = pe
+            
+            if pe < 10**(-4):
+                break
             
         plt.semilogy(snrs, Pe, label=f"Alamouti (M={M})")
+    
     
     
     # Simulation des V-Blasts
     for M in [2, 4, 8]:
         print(f"M={M}")
-        Pe = []
+        Pe = np.zeros_like(snrs)
         
-        for snr in snrs:
-            Pe.append(simulate_pe_ml(snr, M=M))
+        for snr in range(len(snrs)):
+            pe = simulate_pe_ml(snrs[snr], M=M)
+            Pe[snr] = pe
+            if pe < 10**(-5):
+                break
             
         plt.semilogy(snrs, Pe, label=f'V-BLAST (M={M})')
     

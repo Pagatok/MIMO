@@ -37,9 +37,10 @@ def decodage_zf(H, Y, A):
 def simulate_pe_zf(snr_db, n_trials=1000):
     n_symbol_errors = 0
     n_total_symbols = n_trials * 2 * 2 
+    H = generate_channel(N=2, M=2)
 
     for _ in range(n_trials):
-        H = generate_channel(N=2, M=2)
+        
         X = generate_codeword(A)
         V = generate_noise(M=2, L=2, snr_db=snr_db)
         Y = H @ X + V
